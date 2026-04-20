@@ -1,24 +1,32 @@
 console.log("SERVER FILE LOADED");
+
 const express = require("express");
 const cors = require("cors");
+
 const seedDatabase = require("./services/seed");
 const db = require("./database/db");
 const { parseQuery } = require("./utils/nlpParser");
+const { buildQuery } = require("./utils/queryParser");
 
 const app = express();
 
-const { buildQuery } = require("./utils/queryParser");
-
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// 🔥 Home route (THIS is what you asked for)
+app.get("/", (req, res) => {
+  res.json({ message: "Stage 2 API is live 🚀" });
 });
 
+// Seed database (runs once after startup)
 setTimeout(() => {
   seedDatabase();
 }, 1000);
 
+// 🔍 Search endpoint
 app.get("/api/profiles/search", (req, res) => {
   const q = req.query.q;
 
@@ -37,9 +45,6 @@ app.get("/api/profiles/search", (req, res) => {
       message: "Unable to interpret query",
     });
   }
-
-  // reuse your query builder
-  const { buildQuery } = require("./utils/queryParser");
 
   const page = Math.max(parseInt(req.query.page) || 1, 1);
   const limit = Math.min(parseInt(req.query.limit) || 10, 50);
@@ -63,4 +68,9 @@ app.get("/api/profiles/search", (req, res) => {
       data: rows,
     });
   });
+});
+
+// Start server (KEEP THIS LAST)
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
