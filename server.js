@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ✅ Seed DB
+// ✅ SEED DATABASE
 seedDatabase();
 
 // ✅ ROOT
@@ -122,7 +122,7 @@ app.get("/api/profiles", (req, res) => {
 });
 
 
-// ✅ NATURAL LANGUAGE SEARCH
+// ✅ NATURAL LANGUAGE SEARCH (WITH PAGINATION + MORE COUNTRIES)
 app.get("/api/profiles/search", (req, res) => {
   const q = req.query.q;
 
@@ -158,10 +158,14 @@ app.get("/api/profiles/search", (req, res) => {
     filters.min_age = Number(aboveMatch[1]);
   }
 
-  // COUNTRY
+  // COUNTRIES (IMPROVED)
   if (queryText.includes("nigeria")) filters.country_id = "NG";
   if (queryText.includes("kenya")) filters.country_id = "KE";
   if (queryText.includes("angola")) filters.country_id = "AO";
+  if (queryText.includes("ghana")) filters.country_id = "GH";
+  if (queryText.includes("uganda")) filters.country_id = "UG";
+  if (queryText.includes("tanzania")) filters.country_id = "TZ";
+  if (queryText.includes("benin")) filters.country_id = "BJ";
 
   if (Object.keys(filters).length === 0) {
     return res.status(400).json({
@@ -170,7 +174,6 @@ app.get("/api/profiles/search", (req, res) => {
     });
   }
 
-  // BUILD QUERY
   let sql = "SELECT * FROM profiles WHERE 1=1";
   let params = [];
 
@@ -199,23 +202,30 @@ app.get("/api/profiles/search", (req, res) => {
     params.push(filters.max_age);
   }
 
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({
-        status: "error",
-        message: err.message,
-      });
-    }
+  // PAGINATION
+  const pageNum = Number(req.query.page || 1);
+  const limitNum = Math.min(Number(req.query.limit || 10), 50);
+  const offset = (pageNum - 1) * limitNum;
 
-    res.json({
-      status: "success",
-      data: rows,
+  sql += " LIMIT ? OFFSET ?";
+  params.push(limitNum, offset);
+
+  // TOTAL COUNT
+  db.get("SELECT COUNT(*) as total FROM profiles", [], (err, countRow) => {
+    db.all(sql, params, (err, rows) => {
+      res.json({
+        status: "success",
+        page: pageNum,
+        limit: limitNum,
+        total: countRow.total,
+        data: rows,
+      });
     });
   });
 });
 
 
-// ✅ START SERVER (LAST)
+// ✅ START SERVER
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
